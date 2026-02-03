@@ -228,7 +228,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                     <div>
                       <label className="block text-[9px] md:text-[10px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-widest mb-2 ml-1">
-                        Legal Name
+                        Legal Fullname
                       </label>
                       <input
                         required
@@ -261,7 +261,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[9px] md:text-[10px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-widest mb-2 ml-1">
-                      Email Protocol
+                      Email Address
                     </label>
                     <div className="relative">
                       <Mail
@@ -280,7 +280,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                   <div>
                     <label className="block text-[9px] md:text-[10px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-widest mb-2 ml-1">
-                      Security Key
+                      Password
                     </label>
                     <div className="relative">
                       <Lock
@@ -301,7 +301,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   {isRegistering && (
                     <div className="animate-in fade-in duration-500">
                       <label className="block text-[9px] md:text-[10px] font-black text-zinc-700 dark:text-zinc-400 uppercase tracking-widest mb-2 ml-1">
-                        Confirm Key
+                        Confirm Password
                       </label>
                       <div className="relative">
                         <ShieldCheck

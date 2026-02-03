@@ -94,10 +94,10 @@ const SplashScreen: React.FC = () => (
       <div className="bg-white/10 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/20 shadow-2xl mb-8 transform hover:scale-105 transition-transform duration-500">
         <Logo size={64} className="text-white" />
       </div>
-      <h1 className="text-6xl font-semibold tracking-tighter mb-2 drop-shadow-xl text-white">
-        SPACEYA
+      <h1 className="text-6xl font-semibold tracking-tighter mb-2 drop-shadow-xl text-white font-orbitron">
+        Spaceya
       </h1>
-      <p className="text-blue-400 font-playfair tracking-widest text-lg italic">
+      <p className="text-blue-400 tracking-widest text-lg italic font-poppins-thin">
         Your Space, Handled
       </p>
     </div>
@@ -243,21 +243,16 @@ const App: React.FC = () => {
     saveStore(store);
   };
 
-  const handleLogin = (loggedUser: User) => {
+  const handleLoginSuccess = (loggedUser: User) => {
     const store = getStore();
     store.currentUser = loggedUser;
     saveStore(store); // This will trigger onSnapshot for all clients
     setUser(loggedUser); // Optimistic update
 
-    // Referral redirection logic
-    const pendingReferralId = localStorage.getItem("referral_agent_id");
-    if (pendingReferralId && loggedUser.role === UserRole.TENANT) {
-      setView("applications");
-    } else {
-      setView(
-        loggedUser.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
-      );
-    }
+    // ALL users are sent to their dashboard upon login
+    setView(
+      loggedUser.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
+    );
   };
 
   const handleLogout = () => {
@@ -412,7 +407,7 @@ const App: React.FC = () => {
   if (isLoading) return <SplashScreen />;
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLoginSuccess} />;
   }
 
   return (
@@ -428,7 +423,7 @@ const App: React.FC = () => {
       <div className="md:hidden flex items-center justify-between glass-card p-4 shadow-sm shrink-0 z-[60] border-b border-white/10">
         <div className="flex items-center gap-2">
           <Logo size={24} className="text-blue-600 dark:text-blue-400" />
-          <h1 className="font-bold text-lg tracking-tighter">SPACEYA</h1>
+          <h1 className="font-bold text-lg tracking-tighter font-orbitron">Spaceya</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -472,8 +467,8 @@ const App: React.FC = () => {
             </div>
             {!isSidebarCollapsed && (
               <div className="mt-4">
-                <h1 className="text-xl md:text-2xl font-bold tracking-tighter text-zinc-900 dark:text-white truncate">
-                  SPACEYA
+                <h1 className="text-xl md:text-2xl font-bold tracking-tighter text-zinc-900 dark:text-white truncate font-orbitron">
+                  Spaceya
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-[9px] md:text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.3em] font-black opacity-60">

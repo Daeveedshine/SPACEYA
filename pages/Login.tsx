@@ -48,6 +48,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
       onLogin(user);
+      setIsLoading(false);
     } else {
       setError("Invalid email or password. Please try again.");
       setIsLoading(false);
@@ -105,6 +106,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         localStorage.removeItem("referral_agent_id");
       }
       onLogin(newUser);
+      setIsLoading(false);
     } else {
       setError(
         "Failed to create account. Please check your connection and try again.",

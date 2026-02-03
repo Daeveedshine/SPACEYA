@@ -5,17 +5,14 @@ import {
   Payment,
   MaintenanceTicket,
   Notification,
-  UserRole,
-  PropertyStatus,
-  TicketStatus,
-  TicketPriority,
-  NotificationType,
   TenantApplication,
-  ApplicationStatus,
-  PropertyCategory,
   FormTemplate,
 } from "./types";
+import { db } from "./services/Firebase";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+
 const STORAGE_KEY = "prop_lifecycle_data";
+const FIRESTORE_DOC_ID = "app_state"; // Single document to store all app state
 
 export interface UserSettings {
   notifications: {
@@ -35,7 +32,7 @@ export interface UserSettings {
   };
 }
 
-interface AppState {
+export interface AppState {
   users: User[];
   properties: Property[];
   agreements: Agreement[];
@@ -91,16 +88,39 @@ export const getStore = (): AppState => {
   return parsed;
 };
 
-// Save data to LocalStorage (Immediate)
-export const saveStore = (state: AppState) => {
+// Save data to LocalStorage and Firestore
+export const saveStore = async (state: AppState) => {
   // Local Persistence (Fast)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+  // Firestore Persistence (Slower, but Synced)
+  try {
+    await setDoc(doc(db, "prop_lifecycle", FIRESTORE_DOC_ID), state);
+  } catch (error) {
+    console.error("Firebase sync failed:", error);
+    // Optionally, notify the user of the sync failure
+  }
 };
 
-// Mock sync for local-only operation
+// Set up real-time sync with Firebase
 export const initFirebaseSync = (onUpdate: (newState: AppState) => void) => {
-  return () => {};
+  const docRef = doc(db, "prop_lifecycle", FIRESTORE_DOC_ID);
+
+  const unsubscribe = onSnapshot(docRef, (doc) => {
+    if (doc.exists()) {
+      const newState = doc.data() as AppState;
+      onUpdate(newState);
+      // Also update local storage to keep it in sync
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+    } else {
+      // If no data in Firestore, initialize it with the local data
+      saveStore(getStore());
+    }
+  });
+
+  return unsubscribe; // Return the unsubscribe function to be called on cleanup
 };
+
 
 /**
  * UTILITY: Format currency based on user settings

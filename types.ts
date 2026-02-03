@@ -10,6 +10,19 @@ export enum PropertyType {
   COMMERCIAL = "Commercial",
 }
 
+export enum PropertyCategory {
+    RESIDENTIAL = "Residential",
+    COMMERCIAL = "Commercial",
+    INDUSTRIAL = "Industrial",
+    LAND = "Land",
+}
+
+export enum PropertyStatus {
+    AVAILABLE = "Available",
+    OCCUPIED = "Occupied",
+    MAINTENANCE = "Under Maintenance",
+  }
+
 export enum TicketStatus {
   OPEN = "Open",
   IN_PROGRESS = "In Progress",
@@ -17,11 +30,24 @@ export enum TicketStatus {
   CLOSED = "Closed",
 }
 
+export enum TicketPriority {
+  HIGH = "High",
+  MEDIUM = "Medium",
+  LOW = "Low",
+}
+
 export enum ApplicationStatus {
   PENDING = "Pending",
   APPROVED = "Approved",
   REJECTED = "Rejected",
 }
+
+export enum NotificationType {
+    PAYMENT = "payment",
+    MAINTENANCE = "maintenance",
+    APPLICATION = "application",
+    GENERAL = "general",
+  }
 
 export interface User {
   id: string;
@@ -71,7 +97,7 @@ export interface MaintenanceTicket {
   status: TicketStatus;
   createdAt: string;
   updatedAt: string;
-  priority: "High" | "Medium" | "Low";
+  priority: TicketPriority;
   resolutionDetails?: string;
 }
 

@@ -333,7 +333,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div className="flex items-center gap-4 py-4">
                 <div className="flex-1 h-px bg-white/10"></div>
                 <span className="text-[10px] font-black text-zinc-700 dark:text-zinc-600 uppercase tracking-widest">
-                  or bridge via
+                  or Signup With
                 </span>
                 <div className="flex-1 h-px bg-white/10"></div>
               </div>

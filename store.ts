@@ -88,39 +88,52 @@ export const getStore = (): AppState => {
   return parsed;
 };
 
-// Save data to LocalStorage and Firestore
-export const saveStore = async (state: AppState) => {
-  // Local Persistence (Fast)
+// Save data to LocalStorage and Firestore, returns true on success
+export const saveStore = async (state: AppState): Promise<boolean> => {
+  // Local Persistence (Fast, for immediate UI feedback)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
   // Firestore Persistence (Slower, but Synced)
   try {
-    await setDoc(doc(db, "prop_lifecycle", FIRESTORE_DOC_ID), state);
+    // Use a deep copy for Firestore to avoid any circular reference issues
+    const stateToSave = JSON.parse(JSON.stringify(state));
+    await setDoc(doc(db, "prop_lifecycle", FIRESTORE_DOC_ID), stateToSave);
+    return true;
   } catch (error) {
     console.error("Firebase sync failed:", error);
     // Optionally, notify the user of the sync failure
+    return false;
   }
 };
 
 // Set up real-time sync with Firebase
-export const initFirebaseSync = (onUpdate: (newState: AppState) => void) => {
+export const initFirebaseSync = (
+  onUpdate: (newState: AppState) => void,
+  onError: (error: Error) => void,
+) => {
   const docRef = doc(db, "prop_lifecycle", FIRESTORE_DOC_ID);
 
-  const unsubscribe = onSnapshot(docRef, (doc) => {
-    if (doc.exists()) {
-      const newState = doc.data() as AppState;
-      onUpdate(newState);
-      // Also update local storage to keep it in sync
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-    } else {
-      // If no data in Firestore, initialize it with the local data
-      saveStore(getStore());
-    }
-  });
+  const unsubscribe = onSnapshot(
+    docRef,
+    (doc) => {
+      if (doc.exists()) {
+        const newState = doc.data() as AppState;
+        onUpdate(newState);
+        // Also update local storage to keep it in sync
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+      } else {
+        // If no data in Firestore, initialize it with the local data
+        saveStore(getStore());
+      }
+    },
+    (error) => {
+      console.error("Firebase connection error:", error);
+      onError(error);
+    },
+  );
 
   return unsubscribe; // Return the unsubscribe function to be called on cleanup
 };
-
 
 /**
  * UTILITY: Format currency based on user settings

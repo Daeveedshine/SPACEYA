@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { User, UserRole, TicketStatus, ApplicationStatus } from "./types";
-import { AppState, getStore, saveStore, initFirebaseSync } from "./store";
+import { getStore, saveStore, initFirebaseSync } from "./store";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -94,10 +94,10 @@ const SplashScreen: React.FC = () => (
       <div className="bg-white/10 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/20 shadow-2xl mb-8 transform hover:scale-105 transition-transform duration-500">
         <Logo size={64} className="text-white" />
       </div>
-      <h1 className="text-6xl font-semibold tracking-tighter mb-2 drop-shadow-xl text-white font-orbitron">
-        Spaceya
+      <h1 className="text-6xl font-semibold tracking-tighter mb-2 drop-shadow-xl text-white">
+        SPACEYA
       </h1>
-      <p className="text-blue-400 tracking-widest text-lg italic font-poppins-thin">
+      <p className="text-blue-400 font-playfair tracking-widest text-lg italic">
         Your Space, Handled
       </p>
     </div>
@@ -119,8 +119,8 @@ const App: React.FC = () => {
   const [synced, setSynced] = useState(false);
 
   // Sync Settings Function
-  const syncVisualSettings = (newStore?: AppState) => {
-    const store = newStore || getStore();
+  const syncVisualSettings = () => {
+    const store = getStore();
     const { appearance } = store.settings;
 
     document.documentElement.classList.toggle(
@@ -137,8 +137,8 @@ const App: React.FC = () => {
     );
   };
 
-  const refreshBadges = (newStore?: AppState) => {
-    const store = newStore || getStore();
+  const refreshBadges = () => {
+    const store = getStore();
     if (!store.currentUser) return;
     const u = store.currentUser;
 
@@ -175,64 +175,35 @@ const App: React.FC = () => {
     setBadges({ notifications, maintenance, screenings });
   };
 
-  // Main effect for initialization and Firebase sync
   useEffect(() => {
-    // Initial theme and settings setup from local storage
-    const localStore = getStore();
-    const savedTheme = localStore.theme || "dark";
+    const store = getStore();
+    const savedTheme = store.theme || "dark";
     setTheme(savedTheme);
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    syncVisualSettings(localStore);
 
-    // Handle referral links
+    // Check for Referral Link in URL
     const params = new URLSearchParams(window.location.search);
     const refAgentId = params.get("ref");
     if (refAgentId) {
       localStorage.setItem("referral_agent_id", refAgentId);
+      // Clean URL without refresh
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // --- REAL-TIME FIREBASE SYNC ---
-    const unsubscribe = initFirebaseSync((newState: AppState) => {
-      console.log("Firebase state updated!", newState);
-      setSynced(true);
+    // Initial sync
+    syncVisualSettings();
 
-      // Update theme
-      const newTheme = newState.theme || "dark";
-      setTheme(newTheme);
-      document.documentElement.classList.toggle("dark", newTheme === "dark");
-
-      // Update user
-      if (newState.currentUser) {
-        setUser(newState.currentUser);
-        if (isLoading) {
-          // On initial load, determine the view
-          setView(
-            newState.currentUser.role === UserRole.ADMIN
-              ? "admin_dashboard"
-              : "dashboard",
-          );
-        }
-      } else {
-        setUser(null);
+    const timer = setTimeout(() => {
+      if (store.currentUser) {
+        setUser(store.currentUser);
+        if (store.currentUser.role === UserRole.ADMIN)
+          setView("admin_dashboard");
+        refreshBadges();
       }
-
-      // Refresh badges and visual settings
-      refreshBadges(newState);
-      syncVisualSettings(newState);
-
-      // Hide loading screen after first successful sync
-      if (isLoading) {
-        setIsLoading(false);
-      }
-    });
-
-    // Cleanup subscription on unmount
-    return () => {
-      console.log("Unsubscribing from Firebase sync.");
-      unsubscribe();
-    };
-  }, [isLoading]); // Rerunning this effect is handled carefully inside
+      setIsLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -243,23 +214,32 @@ const App: React.FC = () => {
     saveStore(store);
   };
 
-  const handleLoginSuccess = (loggedUser: User) => {
+  const handleLogin = (loggedUser: User) => {
     const store = getStore();
     store.currentUser = loggedUser;
-    saveStore(store); // This will trigger onSnapshot for all clients
-    setUser(loggedUser); // Optimistic update
+    saveStore(store);
+    setUser(loggedUser);
 
-    // ALL users are sent to their dashboard upon login
-    setView(
-      loggedUser.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
-    );
+    // Check if there is a pending referral action
+    const pendingReferralId = localStorage.getItem("referral_agent_id");
+
+    if (pendingReferralId && loggedUser.role === UserRole.TENANT) {
+      setView("applications");
+    } else {
+      setView(
+        loggedUser.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
+      );
+    }
+
+    refreshBadges();
+    syncVisualSettings(); // Refresh visual state on login
   };
 
   const handleLogout = () => {
     const store = getStore();
     store.currentUser = null;
-    saveStore(store); // This will trigger onSnapshot for all clients
-    setUser(null); // Optimistic update
+    saveStore(store);
+    setUser(null);
   };
 
   const renderView = () => {
@@ -273,7 +253,7 @@ const App: React.FC = () => {
       case "properties":
         return <Properties user={user} />;
       case "maintenance":
-        return <Maintenance user={user} onUpdate={() => refreshBadges()} />;
+        return <Maintenance user={user} onUpdate={refreshBadges} />;
       case "payments":
         return <Payments user={user} />;
       case "agreements":
@@ -282,7 +262,7 @@ const App: React.FC = () => {
         return (
           <Notifications
             user={user}
-            onRefreshCount={() => refreshBadges()}
+            onRefreshCount={refreshBadges}
             onNavigate={setView}
           />
         );
@@ -293,7 +273,7 @@ const App: React.FC = () => {
           <Applications
             user={user}
             onNavigate={setView}
-            onUpdate={() => refreshBadges()}
+            onUpdate={refreshBadges}
           />
         );
       case "screenings":
@@ -301,7 +281,7 @@ const App: React.FC = () => {
           <Screenings
             user={user}
             onNavigate={setView}
-            onUpdate={() => refreshBadges()}
+            onUpdate={refreshBadges}
           />
         );
       case "admin_applications":
@@ -317,8 +297,8 @@ const App: React.FC = () => {
         return (
           <Settings
             user={user}
-            onThemeChange={toggleTheme}
-            onSettingsUpdate={() => syncVisualSettings()}
+            onThemeChange={setTheme}
+            onSettingsUpdate={syncVisualSettings}
           />
         );
       default:
@@ -407,12 +387,13 @@ const App: React.FC = () => {
   if (isLoading) return <SplashScreen />;
 
   if (!user) {
-    return <Login onLogin={handleLoginSuccess} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] text-zinc-900 dark:text-white transition-colors duration-300 overflow-hidden relative">
       <Toaster />
+      {/* Mobile Backdrop Overlay */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] md:hidden transition-opacity duration-300"
@@ -420,10 +401,11 @@ const App: React.FC = () => {
         />
       )}
 
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between glass-card p-4 shadow-sm shrink-0 z-[60] border-b border-white/10">
         <div className="flex items-center gap-2">
           <Logo size={24} className="text-blue-600 dark:text-blue-400" />
-          <h1 className="font-bold text-lg tracking-tighter font-orbitron">Spaceya</h1>
+          <h1 className="font-bold text-lg tracking-tighter">SPACEYA</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -441,6 +423,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      {/* Sidebar */}
       <aside
         className={`
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} 
@@ -467,8 +450,8 @@ const App: React.FC = () => {
             </div>
             {!isSidebarCollapsed && (
               <div className="mt-4">
-                <h1 className="text-xl md:text-2xl font-bold tracking-tighter text-zinc-900 dark:text-white truncate font-orbitron">
-                  Spaceya
+                <h1 className="text-xl md:text-2xl font-bold tracking-tighter text-zinc-900 dark:text-white truncate">
+                  SPACEYA
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-[9px] md:text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.3em] font-black opacity-60">
@@ -528,26 +511,10 @@ const App: React.FC = () => {
                 </button>
               ))}
           </nav>
-          
-          {/* Footer Area with Sync Status */}
+
           <div
             className={`pt-6 border-t border-zinc-200 dark:border-white/10 mt-6 space-y-2 shrink-0 ${isSidebarCollapsed ? "flex flex-col items-center" : ""}`}
           >
-           <div
-              title={isSidebarCollapsed ? (synced ? "Data Synced" : "Syncing...") : ""}
-              className={`w-full flex items-center font-bold rounded-2xl transition-all text-zinc-500 dark:text-zinc-400
-              ${isSidebarCollapsed ? "justify-center p-3.5" : "px-5 py-3 text-xs"}`}
-            >
-              <Cloud
-                className={`${isSidebarCollapsed ? "" : "mr-4"} h-5 w-5 ${synced ? "text-green-500" : "animate-pulse"}`}
-              />
-              {!isSidebarCollapsed && (
-                <span className="truncate">
-                  {synced ? "Cloud Synced" : "Syncing..."}
-                </span>
-              )}
-            </div>
-
             <button
               onClick={toggleTheme}
               title={isSidebarCollapsed ? "Toggle Theme" : ""}
@@ -576,6 +543,7 @@ const App: React.FC = () => {
               {!isSidebarCollapsed && "Sign Out"}
             </button>
 
+            {/* Desktop Collapse Toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="hidden md:flex w-full items-center justify-center p-3.5 text-zinc-400 hover:text-blue-600 hover:bg-white/10 rounded-2xl transition-all"
@@ -595,6 +563,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
+      {/* Main Content Area */}
       <main className="flex-1 overflow-auto p-4 md:p-8 lg:p-10 print:p-0 transition-all duration-300 relative z-10 bg-offwhite dark:bg-transparent">
         <div className="max-w-7xl mx-auto h-full">{renderView()}</div>
       </main>

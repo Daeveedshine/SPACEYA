@@ -77,16 +77,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     setIsLoading(true);
-    const store = getStore();
-    const existingUser = store.users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase(),
-    );
-
-    if (existingUser) {
-      setError("An account with this email already exists.");
-      setIsLoading(false);
-      return;
-    }
 
     try {
       // 1. Create user in Firebase Auth
@@ -111,6 +101,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       };
 
       // 3. Save new user to the global state
+      const store = getStore();
       const newState = {
         ...store,
         users: [...store.users, newUser],
@@ -128,12 +119,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           "Account created, but failed to save user data. Please try logging in.",
         );
       }
-    } catch (error) {
-      setError("Failed to create account. Email might be taken or invalid.");
+    } catch (error: any) {
+      if (error.code === "auth/email-already-in-use") {
+        setError(
+          "An account with this email already exists. Please try logging in.",
+        );
+      } else {
+        setError("Failed to create account. Email might be taken or invalid.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-zinc-900 text-zinc-900 dark:text-white flex items-center justify-center p-4">
@@ -292,4 +290,4 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 };
 
-export default Login;
+export default Login; 

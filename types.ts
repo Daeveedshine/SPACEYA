@@ -1,187 +1,115 @@
-
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  AGENT = 'AGENT',
-  TENANT = 'TENANT'
+  ADMIN = "admin",
+  AGENT = "agent",
+  TENANT = "tenant",
 }
 
-export enum PropertyStatus {
-  DRAFT = 'DRAFT',
-  LISTED = 'LISTED',
-  OCCUPIED = 'OCCUPIED',
-  VACANT = 'VACANT',
-  ARCHIVED = 'ARCHIVED'
+export enum PropertyType {
+  APARTMENT = "Apartment",
+  HOUSE = "House",
+  COMMERCIAL = "Commercial",
 }
-
-export enum PropertyCategory {
-  RESIDENTIAL = 'Residential',
-  COMMERCIAL = 'Commercial'
-}
-
-export type PropertyType = 
-  | 'Single Room' | 'Self-contained' | 'Mini Flat (1 Bedroom)' 
-  | '2 Bedroom flat' | '3 Bedroom Flat' | '4 Bedroom Flat' 
-  | 'Terrace' | 'Semi-detached Duplex' | 'Fully Detached Duplex' 
-  | 'Penthouse' | 'Studio Appartment' | 'Serviced Appartment' 
-  | 'Shop' | 'Plaza Shop' | 'Office Space' | 'Co-working Space' 
-  | 'Factory' | 'Warehouse' | 'land';
 
 export enum TicketStatus {
-  OPEN = 'OPEN',
-  IN_PROGRESS = 'IN_PROGRESS',
-  RESOLVED = 'RESOLVED'
-}
-
-export enum TicketPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  EMERGENCY = 'EMERGENCY'
-}
-
-export enum NotificationType {
-  INFO = 'INFO',
-  WARNING = 'WARNING',
-  ERROR = 'ERROR',
-  SUCCESS = 'SUCCESS'
+  OPEN = "Open",
+  IN_PROGRESS = "In Progress",
+  RESOLVED = "Resolved",
+  CLOSED = "Closed",
 }
 
 export enum ApplicationStatus {
-  PENDING = 'PENDING',
-  REVIEWING = 'REVIEWING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  MORE_INFO_REQUIRED = 'MORE_INFO_REQUIRED'
+  PENDING = "Pending",
+  APPROVED = "Approved",
+  REJECTED = "Rejected",
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: UserRole;
-  assignedPropertyId?: string;
-  phone?: string;
-  profilePictureUrl?: string;
+  agentId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Property {
   id: string;
   name: string;
-  location: string;
-  rent: number;
-  status: PropertyStatus;
-  agentId: string;
-  tenantId?: string;
-  description?: string;
-  category: PropertyCategory;
+  address: string;
   type: PropertyType;
-  rentStartDate?: string;
-  rentExpiryDate?: string;
-  images?: string[];
-}
-
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'file' | 'email' | 'tel';
-
-export interface FormField {
-  id: string;
-  key: string; // Map to TenantApplication properties (e.g., 'firstName') or custom IDs
-  label: string;
-  type: FieldType;
-  required: boolean;
-  options?: string[]; // For select inputs
-  placeholder?: string;
-}
-
-export interface FormSection {
-  id: string;
-  title: string;
-  icon: string; // Lucide icon name
-  fields: FormField[];
-}
-
-export interface FormTemplate {
+  unitCount: number;
   agentId: string;
-  sections: FormSection[];
-  lastUpdated: string;
-}
-
-export interface TenantApplication {
-  id: string;
-  userId: string;
-  propertyId: string;
-  agentId: string;
-  status: ApplicationStatus;
-  submissionDate: string;
-  
-  // Core Fields (Mapped from Dynamic Form)
-  firstName: string;
-  surname: string;
-  middleName: string;
-  dob: string;
-  maritalStatus: string;
-  gender: string;
-  currentHomeAddress: string;
-  occupation: string;
-  familySize: number;
-  phoneNumber: string;
-  reasonForRelocating: string;
-  currentLandlordName: string;
-  currentLandlordPhone: string;
-  verificationType: string;
-  verificationIdNumber: string;
-  verificationUrl?: string;
-  passportPhotoUrl?: string;
-  agentIdCode: string;
-  signature: string;
-  applicationDate: string;
-  
-  // Custom Dynamic Data
-  customResponses?: Record<string, any>; // Key: Field ID, Value: User Input
-
-  riskScore: number;
-  aiRecommendation: string;
+  imageUrl: string;
 }
 
 export interface Agreement {
   id: string;
   propertyId: string;
   tenantId: string;
-  version: number;
   startDate: string;
   endDate: string;
-  documentUrl?: string;
-  status: 'active' | 'expired' | 'terminated';
+  rentAmount: number;
+  documentUrl: string;
 }
 
 export interface Payment {
   id: string;
-  tenantId: string;
-  propertyId: string;
+  agreementId: string;
   amount: number;
-  date: string;
-  status: 'paid' | 'pending' | 'late';
+  paymentDate: string;
+  isVerified: boolean;
 }
 
 export interface MaintenanceTicket {
   id: string;
-  tenantId: string;
   propertyId: string;
+  tenantId: string;
   issue: string;
+  description: string;
   status: TicketStatus;
-  priority: TicketPriority;
   createdAt: string;
-  aiAssessment?: string;
-  imageUrl?: string;
+  updatedAt: string;
+  priority: "High" | "Medium" | "Low";
+  resolutionDetails?: string;
 }
 
 export interface Notification {
   id: string;
   userId: string;
-  title: string;
   message: string;
-  type: NotificationType;
-  timestamp: string;
   isRead: boolean;
-  linkTo?: string;
-  attachmentUrl?: string;
+  createdAt: string;
+  relatedEntityId?: string;
+  type: "payment" | "maintenance" | "application" | "general";
+}
+
+export interface TenantApplication {
+  id: string;
+  propertyId: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  status: ApplicationStatus;
+  submittedAt: string;
+  agentId: string;
+}
+
+export type FormFieldValue = string | number | boolean | string[];
+
+export interface FormField {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "checkbox" | "number";
+  options?: string[]; // for select type
+  required: boolean;
+}
+
+export interface FormTemplate {
+  id: string;
+  name: string;
+  description: string;
+  fields: FormField[];
 }

@@ -3,7 +3,6 @@ import { User, UserRole } from "../types";
 import { getStore, saveStore } from "../store";
 import {
   Mail,
-  Phone,
   ArrowRight,
   Home,
   Users,
@@ -15,6 +14,11 @@ import {
   Loader,
 } from "lucide-react";
 import { Logo } from "../App";
+import { auth } from "../services/Firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -31,26 +35,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    const store = getStore();
-
-    const user = store.users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase(),
-    );
-
-    if (user && user.password === password) {
-      if (store.currentUser && store.currentUser.id !== user.id) {
-        setError("Another user is already active. Please log out first.");
-        setIsLoading(false);
-        return;
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      const store = getStore();
+      const user = store.users.find(
+        (u) => u.id === userCredential.user.uid,
+      );
+      if (user) {
+        onLogin(user);
+      } else {
+        setError(
+          "Login successful, but user data not found. Contact support.",
+        );
       }
-      onLogin(user);
-      setIsLoading(false);
-    } else {
+    } catch (error) {
       setError("Invalid email or password. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -80,37 +88,49 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       return;
     }
 
-    const referralAgentId = localStorage.getItem("referral_agent_id");
-
-    const newUser: User = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      phone,
-      password,
-      role,
-      agentId: role === UserRole.TENANT ? referralAgentId : undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const newState = {
-      ...store,
-      users: [...store.users, newUser],
-    };
-
-    const success = await saveStore(newState);
-
-    if (success) {
-      if (referralAgentId) {
-        localStorage.removeItem("referral_agent_id");
-      }
-      onLogin(newUser);
-      setIsLoading(false);
-    } else {
-      setError(
-        "Failed to create account. Please check your connection and try again.",
+    try {
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
       );
+      const { uid } = userCredential.user;
+
+      // 2. Create user data object (without password)
+      const referralAgentId = localStorage.getItem("referral_agent_id");
+      const newUser: User = {
+        id: uid, // Use the UID from Firebase Auth
+        name,
+        email,
+        phone,
+        role,
+        agentId: role === UserRole.TENANT ? referralAgentId : undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // 3. Save new user to the global state
+      const newState = {
+        ...store,
+        users: [...store.users, newUser],
+      };
+
+      const success = await saveStore(newState);
+
+      if (success) {
+        if (referralAgentId) {
+          localStorage.removeItem("referral_agent_id");
+        }
+        onLogin(newUser);
+      } else {
+        setError(
+          "Account created, but failed to save user data. Please try logging in.",
+        );
+      }
+    } catch (error) {
+      setError("Failed to create account. Email might be taken or invalid.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -243,7 +263,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <>
                   <Loader className="animate-spin" />
                   <span>Processing...</span>
-                </> 
+                </>
               ) : (
                 <>
                   <span>{isRegistering ? "Create Account" : "Sign In"}</span>

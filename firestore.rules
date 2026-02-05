@@ -2,29 +2,28 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Secure rules for the 'users' collection
-    match /users/{userId} {
-      // Allow a user to be created if the person creating it is the user themselves.
-      // This prevents users from creating accounts for others.
-      allow create: if request.auth.uid == userId;
+    // This rule manages the single document that holds the entire app state.
+    match /prop_lifecycle/{docId} {
+      allow read: if request.auth != null;
 
-      // Allow a user to read and update their own data.
-      // This is important for profile updates.
-      allow read, update: if request.auth.uid == userId;
-
-      // Prevent users from deleting their own account through this rule.
-      // Deletion should be handled by a more secure, server-side process.
-      allow delete: if false;
+      // Write rule: Allow writes only if the user is authenticated
+      // and the 'displayId' of any user in the 'users' array is not being changed.
+      allow write: if request.auth != null && usersDisplayIdNotChanged();
     }
 
-    // Rules for the single document storing the entire application state.
-    // WARNING: This architecture is not recommended. Storing all state in one
-    // document can lead to security issues and performance bottlenecks.
-    match /prop_lifecycle/{docId} {
-      // Allow any authenticated user to read and write the application state.
-      // This is required for the application to function as designed,
-      // but it means any user can overwrite the entire database.
-      allow read, write: if request.auth != null;
+    // Helper function to check if the displayId of any user is being modified.
+    function usersDisplayIdNotChanged() {
+      // Get the list of users before the change and after the change.
+      let before = resource.data.users;
+      let after = request.resource.data.users;
+
+      // Find a user whose displayId has changed. The `filter()` method returns a list
+      // of all users for whom the condition is true. If this list is empty, it means
+      // no user's displayId has been changed.
+      let changedUsers = before.filter((user, i) => user.id == after[i].id && user.displayId != after[i].displayId);
+
+      // The write is allowed only if the list of changed users is empty.
+      return changedUsers.size() == 0;
     }
   }
 }

@@ -7,9 +7,12 @@ import {
   Notification,
   TenantApplication,
   FormTemplate,
+  UserRole,
+  AppState,
 } from "./types";
 import { db } from "./services/Firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
+import { webcrypto } from 'crypto';
 
 const STORAGE_KEY = "prop_lifecycle_data";
 const FIRESTORE_DOC_ID = "app_state"; // Single document to store all app state
@@ -30,20 +33,6 @@ export interface UserSettings {
     currency: "NGN" | "USD" | "EUR";
     dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY";
   };
-}
-
-export interface AppState {
-  users: User[];
-  properties: Property[];
-  agreements: Agreement[];
-  payments: Payment[];
-  tickets: MaintenanceTicket[];
-  notifications: Notification[];
-  applications: TenantApplication[];
-  formTemplates: FormTemplate[];
-  currentUser: User | null;
-  theme: "light" | "dark";
-  settings: UserSettings;
 }
 
 const initialSettings: UserSettings = {
@@ -76,6 +65,32 @@ const initialData: AppState = {
   currentUser: null,
   theme: "dark",
   settings: initialSettings,
+};
+
+// UID Generation Logic
+const generateSecureAlphanumeric = (length: number): string => {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    const randomValues = new Uint32Array(length);
+    webcrypto.getRandomValues(randomValues);
+    for (let i = 0; i < length; i++) {
+        result += charset[randomValues[i] % charset.length];
+    }
+    return result;
+};
+
+export const generateDisplayId = (role: UserRole, existingIds: string[]): string => {
+    const prefix = role === UserRole.AGENT ? 'AGT' : 'TNT';
+    let newId = '';
+    let isUnique = false;
+
+    while (!isUnique) {
+        newId = `${prefix}-${generateSecureAlphanumeric(6)}`;
+        if (!existingIds.includes(newId)) {
+            isUnique = true;
+        }
+    }
+    return newId;
 };
 
 // Retrieve data synchronously from LocalStorage for instant UI render
@@ -121,16 +136,20 @@ export const saveStore = async (state: AppState): Promise<boolean> => {
   }
 };
 
-export const saveUser = async (user: User): Promise<boolean> => {
+export const saveUser = async (user: Omit<User, 'displayId'> & { displayId?: string }): Promise<boolean> => {
   const store = getStore();
   const userIndex = store.users.findIndex(u => u.id === user.id);
 
   if (userIndex > -1) {
-    // User exists, update it
-    store.users[userIndex] = user;
+    // User exists, update it, ensuring displayId is not changed
+    const existingUser = store.users[userIndex];
+    store.users[userIndex] = { ...user, displayId: existingUser.displayId };
   } else {
-    // User does not exist, add it to the beginning of the list
-    store.users.unshift(user);
+    // User does not exist, generate a new displayId and add it
+    const existingIds = store.users.map(u => u.displayId);
+    const newDisplayId = generateDisplayId(user.role, existingIds);
+    const newUserWithId = { ...user, displayId: newDisplayId } as User;
+    store.users.unshift(newUserWithId);
   }
 
   // Now, save the entire updated state using the main save function

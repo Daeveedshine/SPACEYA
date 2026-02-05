@@ -50,7 +50,8 @@ export enum NotificationType {
   }
 
 export interface User {
-  id: string;
+  id: string; // This is the internal UUID/ULID
+  displayId: string; // This is the new AGT-/TNT- prefixed ID
   name: string;
   email: string;
   phone: string;
@@ -139,3 +140,17 @@ export interface FormTemplate {
   description: string;
   fields: FormField[];
 }
+
+// This is the master state for the entire application.
+export interface AppState {
+    currentUser: User | null;
+    users: User[];
+    properties: Property[];
+    agreements: Agreement[];
+    payments: Payment[];
+    tickets: MaintenanceTicket[];
+    notifications: Notification[];
+    applications: TenantApplication[];
+    theme: "light" | "dark";
+    settings: any; // Replace 'any' with a specific settings interface later
+  }

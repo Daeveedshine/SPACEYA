@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, UserRole } from "../types";
-import { getStore, saveUser, fetchStoreFromFirestore } from "../store";
+import { fetchStoreFromFirestore, saveStore } from "../store";
 import {
   Mail,
   ArrowRight,
@@ -45,21 +45,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         email,
         password
       );
-      // After successful authentication, fetch the latest state from Firestore
+      // After successful auth, fetch the entire app state from Firestore.
       const firestoreState = await fetchStoreFromFirestore();
+
       if (firestoreState) {
         const user = firestoreState.users.find(
           (u) => u.id === userCredential.user.uid
         );
+
         if (user) {
+          // CRITICAL STEP: The entire fetched state must be saved locally
+          // to sync the new device.
+          firestoreState.currentUser = user; // Set current user in the state
+          await saveStore(firestoreState); // This saves to localStorage AND Firestore
+
+          // Now, trigger the onLogin callback to update the UI.
           onLogin(user);
         } else {
           setError(
-            "Login successful, but user data not found. Contact support."
+            "Login successful, but user data not found in the database. Contact support."
           );
         }
       } else {
-        setError("Could not fetch user data. Please try again.");
+        setError("Could not fetch application data. Please try again.");
       }
     } catch (error) {
       setError("Invalid email or password. Please try again.");
@@ -105,7 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         updatedAt: new Date().toISOString(),
       };
 
-      // 3. Save new user to the 'users' collection
+      // 3. Save new user by updating the entire store
       const success = await saveUser(newUser);
 
       if (success) {

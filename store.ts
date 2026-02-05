@@ -106,6 +106,16 @@ export const saveStore = async (state: AppState): Promise<boolean> => {
   }
 };
 
+export const saveUser = async (user: User): Promise<boolean> => {
+  try {
+    await setDoc(doc(db, "users", user.id), user);
+    return true;
+  } catch (error) {
+    console.error("Firebase sync failed:", error);
+    return false;
+  }
+};
+
 // Set up real-time sync with Firebase
 export const initFirebaseSync = (
   onUpdate: (newState: AppState) => void,

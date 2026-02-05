@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, UserRole } from "../types";
-import { getStore, saveStore } from "../store";
+import { getStore, saveUser } from "../store";
 import {
   Mail,
   ArrowRight,
@@ -14,7 +14,7 @@ import {
   Loader,
 } from "lucide-react";
 import { Logo } from "../App";
-import { auth } from "../services/Firebase";
+import { auth } from "./services/Firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -100,14 +100,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         updatedAt: new Date().toISOString(),
       };
 
-      // 3. Save new user to the global state
-      const store = getStore();
-      const newState = {
-        ...store,
-        users: [...store.users, newUser],
-      };
-
-      const success = await saveStore(newState);
+      // 3. Save new user to the 'users' collection
+      const success = await saveUser(newUser);
 
       if (success) {
         if (referralAgentId) {
@@ -292,4 +286,4 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 };
 
-export default Login; 
+export default Login;

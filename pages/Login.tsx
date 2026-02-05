@@ -115,8 +115,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
         onLogin(newUser);
       } else {
+        // Rollback Firebase user creation if saving to store fails
+        await userCredential.user.delete();
         setError(
-          "Account created, but failed to save user data. Please try logging in.",
+          "Could not save user data. Your registration has been cancelled. Please try again.",
         );
       }
     } catch (error: any) {

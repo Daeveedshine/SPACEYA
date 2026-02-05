@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { User, UserRole } from "../types";
-import { fetchStoreFromFirestore, saveStore } from "../store";
+import { User, UserRole, AppState } from "../types";
+import { fetchStoreFromFirestore, saveStore, getStore, saveUser } from "../store";
 import {
   Mail,
   ArrowRight,
@@ -21,7 +21,7 @@ import {
 } from "firebase/auth";
 
 interface LoginProps {
-  onLogin: (user: User) => void;
+  onLogin: (newState: AppState) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -59,8 +59,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           firestoreState.currentUser = user; // Set current user in the state
           await saveStore(firestoreState); // This saves to localStorage AND Firestore
 
-          // Now, trigger the onLogin callback to update the UI.
-          onLogin(user);
+          // Now, trigger the onLogin callback with the complete, fresh state.
+          onLogin(firestoreState);
         } else {
           setError(
             "Login successful, but user data not found in the database. Contact support."
@@ -92,7 +92,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -100,10 +99,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       );
       const { uid } = userCredential.user;
 
-      // 2. Create user data object (without password)
       const referralAgentId = localStorage.getItem("referral_agent_id");
       const newUser: User = {
-        id: uid, // Use the UID from Firebase Auth
+        id: uid,
         name,
         email,
         phone,
@@ -113,16 +111,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         updatedAt: new Date().toISOString(),
       };
 
-      // 3. Save new user by updating the entire store
       const success = await saveUser(newUser);
 
       if (success) {
         if (referralAgentId) {
           localStorage.removeItem("referral_agent_id");
         }
-        onLogin(newUser);
+        // After saving, get the full updated state and pass it to onLogin
+        const updatedStore = getStore();
+        updatedStore.currentUser = newUser;
+        await saveStore(updatedStore); // Ensure currentUser is persisted
+
+        onLogin(updatedStore);
       } else {
-        // Rollback Firebase user creation if saving to store fails
         await userCredential.user.delete();
         setError(
           "Could not save user data. Your registration has been cancelled. Please try again.",
@@ -140,7 +141,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setIsLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-zinc-900 text-zinc-900 dark:text-white flex items-center justify-center p-4">

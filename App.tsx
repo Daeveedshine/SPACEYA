@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, UserRole, TicketStatus, ApplicationStatus } from "./types";
+import { User, UserRole, TicketStatus, ApplicationStatus, AppState } from "./types";
 import { getStore, saveStore, initFirebaseSync } from "./store";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -214,24 +214,23 @@ const App: React.FC = () => {
     saveStore(store);
   };
 
-  const handleLogin = (loggedUser: User) => {
-    const store = getStore();
-    store.currentUser = loggedUser;
-    saveStore(store);
-    setUser(loggedUser);
-
-    // Check if there is a pending referral action
+  const handleLogin = (newState: AppState) => {
+    setUser(newState.currentUser);
+  
+    // The entire state is now fresh from Firestore via Login.tsx
+    // No need to call getStore() or saveStore() here as Login.tsx already did it.
+  
+    // Determine the initial view after login
     const pendingReferralId = localStorage.getItem("referral_agent_id");
-
-    if (pendingReferralId && loggedUser.role === UserRole.TENANT) {
+    if (pendingReferralId && newState.currentUser?.role === UserRole.TENANT) {
       setView("applications");
     } else {
       setView(
-        loggedUser.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
+        newState.currentUser?.role === UserRole.ADMIN ? "admin_dashboard" : "dashboard",
       );
     }
-
-    refreshBadges();
+  
+    refreshBadges(); // This will use the now-synced local store
     syncVisualSettings(); // Refresh visual state on login
   };
 

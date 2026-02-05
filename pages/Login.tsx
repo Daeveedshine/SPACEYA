@@ -14,7 +14,7 @@ import {
   Loader,
 } from "lucide-react";
 import { Logo } from "../App";
-import { auth } from "./services/Firebase";
+import { auth } from "../services/Firebase";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,

@@ -107,13 +107,19 @@ export const saveStore = async (state: AppState): Promise<boolean> => {
 };
 
 export const saveUser = async (user: User): Promise<boolean> => {
-  try {
-    await setDoc(doc(db, "users", user.id), user);
-    return true;
-  } catch (error) {
-    console.error("Firebase sync failed:", error);
-    return false;
+  const store = getStore();
+  const userIndex = store.users.findIndex(u => u.id === user.id);
+
+  if (userIndex > -1) {
+    // User exists, update it
+    store.users[userIndex] = user;
+  } else {
+    // User does not exist, add it to the beginning of the list
+    store.users.unshift(user);
   }
+
+  // Now, save the entire updated state using the main save function
+  return await saveStore(store);
 };
 
 // Set up real-time sync with Firebase

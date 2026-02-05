@@ -97,7 +97,7 @@ export const saveStore = async (state: AppState): Promise<boolean> => {
   try {
     // Use a deep copy for Firestore to avoid any circular reference issues
     const stateToSave = JSON.parse(JSON.stringify(state));
-    await setDoc(doc(db, "prop_lifecycle", FIRESTORE_DOC_ID), stateToSave);
+    await setDoc(doc(db, "prop_lifecycle", FIRESTORE_DOC_ID), stateToSave, { merge: true });
     return true;
   } catch (error) {
     console.error("Firebase sync failed:", error);

@@ -59,6 +59,7 @@ export interface User {
   agentId?: string;
   createdAt: string;
   updatedAt: string;
+  profilePictureUrl?: string;
 }
 
 export interface Property {
@@ -126,20 +127,30 @@ export interface TenantApplication {
 
 export type FormFieldValue = string | number | boolean | string[];
 
+export type FieldType = "text" | "textarea" | "select" | "checkbox" | "number" | "date" | "file" | "tel" | "email";
+
 export interface FormField {
   id: string;
+  key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "checkbox" | "number";
+  type: FieldType;
   options?: string[]; // for select type
   required: boolean;
 }
 
-export interface FormTemplate {
-  id: string;
-  name: string;
-  description: string;
-  fields: FormField[];
+export interface FormSection {
+    id: string;
+    title: string;
+    icon: string;
+    fields: FormField[];
 }
+
+export interface FormTemplate {
+  agentId: string;
+  lastUpdated: string;
+  sections: FormSection[];
+}
+
 
 // This is the master state for the entire application.
 export interface AppState {
@@ -151,6 +162,7 @@ export interface AppState {
     tickets: MaintenanceTicket[];
     notifications: Notification[];
     applications: TenantApplication[];
+    formTemplates: FormTemplate[];
     theme: "light" | "dark";
     settings: any; // Replace 'any' with a specific settings interface later
   }

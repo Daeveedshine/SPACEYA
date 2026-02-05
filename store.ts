@@ -12,7 +12,6 @@ import {
 } from "./types";
 import { db } from "./services/Firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
-import { webcrypto } from 'crypto';
 
 const STORAGE_KEY = "prop_lifecycle_data";
 const FIRESTORE_DOC_ID = "app_state"; // Single document to store all app state
@@ -72,7 +71,8 @@ const generateSecureAlphanumeric = (length: number): string => {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     const randomValues = new Uint32Array(length);
-    webcrypto.getRandomValues(randomValues);
+    // Use the browser's built-in crypto API
+    window.crypto.getRandomValues(randomValues);
     for (let i = 0; i < length; i++) {
         result += charset[randomValues[i] % charset.length];
     }

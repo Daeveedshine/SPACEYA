@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, UserRole } from "../types";
-import { getStore, saveUser } from "../store";
+import { getStore, saveUser, fetchStoreFromFirestore } from "../store";
 import {
   Mail,
   ArrowRight,
@@ -43,18 +43,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
-        password,
+        password
       );
-      const store = getStore();
-      const user = store.users.find(
-        (u) => u.id === userCredential.user.uid,
-      );
-      if (user) {
-        onLogin(user);
-      } else {
-        setError(
-          "Login successful, but user data not found. Contact support.",
+      // After successful authentication, fetch the latest state from Firestore
+      const firestoreState = await fetchStoreFromFirestore();
+      if (firestoreState) {
+        const user = firestoreState.users.find(
+          (u) => u.id === userCredential.user.uid
         );
+        if (user) {
+          onLogin(user);
+        } else {
+          setError(
+            "Login successful, but user data not found. Contact support."
+          );
+        }
+      } else {
+        setError("Could not fetch user data. Please try again.");
       }
     } catch (error) {
       setError("Invalid email or password. Please try again.");

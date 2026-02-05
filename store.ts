@@ -9,7 +9,7 @@ import {
   FormTemplate,
 } from "./types";
 import { db } from "./services/Firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 
 const STORAGE_KEY = "prop_lifecycle_data";
 const FIRESTORE_DOC_ID = "app_state"; // Single document to store all app state
@@ -86,6 +86,21 @@ export const getStore = (): AppState => {
   if (!parsed.settings) parsed.settings = initialSettings;
   if (!parsed.formTemplates) parsed.formTemplates = initialData.formTemplates;
   return parsed;
+};
+
+// Fetches the entire app state from Firestore.
+export const fetchStoreFromFirestore = async (): Promise<AppState | null> => {
+  try {
+    const docRef = doc(db, "prop_lifecycle", FIRESTORE_DOC_ID);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as AppState;
+    }
+    return null; // Or initialData if that's preferred
+  } catch (error) {
+    console.error("Failed to fetch state from Firestore:", error);
+    return null;
+  }
 };
 
 // Save data to LocalStorage and Firestore, returns true on success

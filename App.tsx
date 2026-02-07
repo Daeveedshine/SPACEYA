@@ -13,6 +13,7 @@ import Applications from "./pages/Applications";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import { Toaster } from "react-hot-toast";
+import { ThemeProvider } from "./components/theme-provider";
 
 const App: React.FC = () => {
   const [store, setStore] = useState<AppState>(getStore());
@@ -63,23 +64,25 @@ const App: React.FC = () => {
   const CurrentView = Views[activeView];
 
   return (
-    <div className={`flex h-screen bg-offwhite dark:bg-black font-sans transition-colors duration-500 ${theme}`}>
-      <Toaster />
-      <Sidebar user={currentUser} activeView={activeView} onNavigate={setActiveView} onLogout={() => { saveStore({ ...store, currentUser: null }); handleUpdate(); }} />
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-        {isSyncing ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-zinc-500">Syncing data...</p>
-          </div>
-        ) : error ? (
-           <div className="flex items-center justify-center h-full">
-            <p className="text-rose-500">{error}</p>
-          </div>
-        ) : (
-          CurrentView
-        )}
-      </main>
-    </div>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <div className={`flex h-screen bg-offwhite dark:bg-black font-sans transition-colors duration-500 ${theme}`}>
+        <Toaster />
+        <Sidebar user={currentUser} activeView={activeView} onNavigate={setActiveView} onLogout={() => { saveStore({ ...store, currentUser: null }); handleUpdate(); }} />
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+          {isSyncing ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-zinc-500">Syncing data...</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-rose-500">{error}</p>
+            </div>
+          ) : (
+            CurrentView
+          )}
+        </main>
+      </div>
+    </ThemeProvider>
   );
 };
 

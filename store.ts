@@ -125,6 +125,61 @@ export const saveUser = async (user: Omit<User, 'displayId'> & { displayId?: str
 };
 // --- END ---
 
+const generateGenericDisplayId = (prefix: string, existingIds: string[]): string => {
+    let newId = '';
+    let isUnique = false;
+    while (!isUnique) {
+        newId = `${prefix}-${generateSecureAlphanumeric(6)}`;
+        if (!existingIds.includes(newId)) {
+            isUnique = true;
+        }
+    }
+    return newId;
+}
+
+export const saveProperty = async (property: Omit<Property, 'id' | 'displayId'>): Promise<boolean> => {
+    const store = getStore();
+    const existingIds = store.properties.map(p => p.displayId);
+    const newDisplayId = generateGenericDisplayId('PROP', existingIds);
+    const newProperty: Property = {
+        ...property,
+        id: crypto.randomUUID(),
+        displayId: newDisplayId,
+    };
+    store.properties.unshift(newProperty);
+    return await saveStore(store);
+};
+
+export const saveMaintenanceRequest = async (request: Omit<MaintenanceTicket, 'id' | 'displayId' | 'status' | 'createdAt'>): Promise<boolean> => {
+    const store = getStore();
+    const existingIds = store.tickets.map(r => r.displayId);
+    const newDisplayId = generateGenericDisplayId('REQ', existingIds);
+    const newRequest: MaintenanceTicket = {
+        ...request,
+        id: crypto.randomUUID(),
+        displayId: newDisplayId,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+    };
+    store.tickets.unshift(newRequest);
+    return await saveStore(store);
+};
+
+export const saveApplication = async (application: Omit<TenantApplication, 'id' | 'displayId' | 'status' | 'createdAt'>): Promise<boolean> => {
+    const store = getStore();
+    const existingIds = store.applications.map(a => a.displayId);
+    const newDisplayId = generateGenericDisplayId('APP', existingIds);
+    const newApplication: TenantApplication = {
+        ...application,
+        id: crypto.randomUUID(),
+        displayId: newDisplayId,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+    };
+    store.applications.unshift(newApplication);
+    return await saveStore(store);
+};
+
 export const initFirebaseSync = (
   onUpdate: (newState: AppState) => void,
   onError: (error: Error) => void,

@@ -1,35 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import {
-  User,
-  TenantApplication,
-  ApplicationStatus,
-  NotificationType,
-  UserRole,
-  FormTemplate,
-} from "../types";
-import { getStore, saveStore } from "../store";
-import {
-  CheckCircle,
-  ArrowRight,
-  ArrowLeft,
-  ShieldCheck,
-  Loader2,
-  UserCheck,
-  Camera,
-  Calendar,
-  FileText,
-  Eye,
-  Download,
-  Plus,
-  X,
-} from "lucide-react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-import { DEFAULT_TEMPLATE } from "../utils/defaults";
-
-// Simplified components from the original file for brevity
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => <div className="space-y-6 break-inside-avoid"><h3 className="text-xs font-black text-zinc-400 uppercase tracking-[0.4em] border-b border-zinc-100 dark:border-zinc-800 pb-2">{title}</h3>{children}</div>;
-const PrintRow: React.FC<{ label: string; value: any }> = ({ label, value }) => <div className="mb-4"><p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 truncate">{label}</p><p className="text-sm font-bold text-zinc-900 dark:text-white leading-tight break-words">{value || "N/A"}</p></div>;
+import React, { useState, useMemo } from "react";
+import { Application, ApplicationStatus, User, UserRole } from "../types";
+import { getStore } from "../store";
+import { format, parseISO } from 'date-fns';
+import { Search, ChevronDown, UserCheck, UserX, Clock, FileText, CheckCircle, XCircle } from "lucide-react";
 
 interface ApplicationsProps {
   user: User;
@@ -37,226 +10,115 @@ interface ApplicationsProps {
   onUpdate?: () => void;
 }
 
-const Applications: React.FC<ApplicationsProps> = ({
-  user,
-  onNavigate,
-  onUpdate,
-}) => {
+const Applications: React.FC<ApplicationsProps> = ({ user, onNavigate, onUpdate }) => {
   const [store, setStore] = useState(getStore());
-  const [viewMode, setViewMode] = useState<"gate" | "form" | "history">("gate");
-  const [targetAgentId, setTargetAgentId] = useState(
-    localStorage.getItem("referral_agent_id") || ""
-  );
-  const [targetAgent, setTargetAgent] = useState<User | null>(null);
-  const [activeTemplate, setActiveTemplate] = useState<FormTemplate | null>(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSearchingAgent, setIsSearchingAgent] = useState(false);
-  const [viewingApp, setViewingApp] = useState<TenantApplication | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
 
-  useEffect(() => {
-    if (targetAgentId) {
-      validateAgent(targetAgentId);
+  const applications = useMemo(() => {
+    // Agents see applications for their properties, tenants see their own applications.
+    const userApplications = user.role === UserRole.AGENT 
+      ? store.applications.filter(app => store.properties.some(p => p.id === app.propertyId && p.agentId === user.id))
+      : store.applications.filter(app => app.userId === user.id);
+    
+    let filteredApps = userApplications;
+
+    if (statusFilter !== "all") {
+      filteredApps = filteredApps.filter(a => a.status === statusFilter);
     }
-  }, []);
 
-  const validateAgent = (id: string) => {
-    setIsSearchingAgent(true);
-    setTimeout(() => {
-      const agent = store.users.find(
-        (u) =>
-          u.displayId.toLowerCase() === id.toLowerCase() &&
-          u.role === UserRole.AGENT
-      );
-      if (agent) {
-        setTargetAgent(agent);
-        const template =
-          store.formTemplates.find((t) => t.agentId === agent.id) ||
-          DEFAULT_TEMPLATE;
-        setActiveTemplate(template);
-        setViewMode("form");
-        setFormData((prev) => ({ ...prev, agentIdCode: agent.displayId }));
-      } else {
-        setTargetAgent(null);
-      }
-      setIsSearchingAgent(false);
-    }, 600);
-  };
+    if (searchTerm) {
+      const lowercasedSearch = searchTerm.toLowerCase();
+      filteredApps = filteredApps.filter(app => {
+        const applicant = store.users.find(u => u.id === app.userId);
+        const property = store.properties.find(p => p.id === app.propertyId);
+        return (
+          applicant?.name.toLowerCase().includes(lowercasedSearch) ||
+          property?.name.toLowerCase().includes(lowercasedSearch)
+        );
+      });
+    }
 
- const handleInputChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
-  };
+    return filteredApps;
 
-  const handleFileUpload = (
-    key: string,
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleInputChange(key, reader.result as string);
+  }, [store, user, searchTerm, statusFilter]);
+
+  const StatusCell: React.FC<{ status: ApplicationStatus }> = ({ status }) => {
+    const statusConfig = {
+      [ApplicationStatus.PENDING]: { icon: Clock, text: "Pending", color: "text-yellow-500" },
+      [ApplicationStatus.APPROVED]: { icon: UserCheck, text: "Approved", color: "text-green-500" },
+      [ApplicationStatus.REJECTED]: { icon: UserX, text: "Rejected", color: "text-rose-500" },
     };
-    reader.readAsDataURL(file);
-  };
-
-
-  const handleSubmitApplication = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      const appRecord: TenantApplication = {
-        id: `app${Date.now()}`,
-        userId: user.id,
-        propertyId: "PENDING",
-        agentId: targetAgent?.id || "u1", 
-        status: ApplicationStatus.PENDING,
-        submissionDate: new Date().toISOString(),
-        firstName: formData.firstName || "",
-        surname: formData.surname || "",
-        middleName: formData.middleName || "",
-        dob: formData.dob || "",
-        maritalStatus: formData.maritalStatus || "Single",
-        gender: formData.gender || "Male",
-        currentHomeAddress: formData.currentHomeAddress || "",
-        occupation: formData.occupation || "",
-        familySize: Number(formData.familySize) || 1,
-        phoneNumber: formData.phoneNumber || "",
-        reasonForRelocating: formData.reasonForRelocating || "",
-        currentLandlordName: formData.currentLandlordName || "",
-        currentLandlordPhone: formData.currentLandlordPhone || "",
-        verificationType: formData.verificationType || "",
-        verificationIdNumber: formData.verificationIdNumber || "",
-        verificationUrl: formData.verificationUrl,
-        passportPhotoUrl: formData.passportPhotoUrl,
-        agentIdCode: targetAgent?.displayId || "",
-        signature: formData.signature || "",
-        applicationDate: formData.applicationDate || new Date().toISOString().split("T")[0],
-        customResponses: formData,
-      };
-
-      const newState = {
-        ...store,
-        applications: [...store.applications, appRecord],
-        notifications: [
-          {
-            id: `n_app_${Date.now()}`,
-            userId: appRecord.agentId,
-            title: "New Tenancy Application",
-            message: `A new candidate has submitted a dossier via your custom form.`,
-            type: NotificationType.APPLICATION,
-            timestamp: new Date().toISOString(),
-            isRead: false,
-            linkTo: "screenings",
-          },
-          ...store.notifications,
-        ],
-      };
-
-      saveStore(newState);
-      setStore(newState);
-      setIsSubmitting(false);
-      setViewMode("history");
-      setFormData({});
-      setCurrentStepIndex(0);
-      if (onUpdate) onUpdate();
-    }, 1500);
-  };
-
- const myApplications = useMemo(() => {
-    return store.applications
-      .filter((app) => app.userId === user.id)
-      .sort(
-        (a, b) =>
-          new Date(b.submissionDate).getTime() -
-          new Date(a.submissionDate).getTime(),
-      );
-  }, [store.applications, user.id]);
-
-
-  const generatePDF = async (app: TenantApplication) => {
-    setIsDownloading(true);
-    const input = document.getElementById("printable-content");
-    if (!input) {
-      setIsDownloading(false);
-      return;
-    }
-    try {
-      const canvas = await html2canvas(input, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-      pdf.save(`SPACEYA_Application_${app.id}.pdf`);
-    } catch (err) {
-      console.error("PDF Generation failed", err);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
- const handleDownloadPDF = async (app: TenantApplication) => {
-    if (!viewingApp || viewingApp.id !== app.id) {
-      setViewingApp(app);
-      setTimeout(() => generatePDF(app), 500);
-      return;
-    }
-    generatePDF(app);
-  };
-
-
-  if (viewMode === "gate") {
+    const config = statusConfig[status];
     return (
-      <div className="h-full flex flex-col items-center justify-center space-y-8 pb-20 animate-in fade-in zoom-in-95 duration-500">
-        <div className="bg-white dark:bg-zinc-900 p-10 md:p-14 rounded-[3.5rem] shadow-2xl border border-zinc-100 dark:border-zinc-800 max-w-lg w-full text-center space-y-8">
-          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto text-white shadow-xl shadow-blue-600/20">
-            <ShieldCheck size={40} />
-          </div>
-          <div>
-            <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">Agent Verification</h2>
-            <p className="text-zinc-500 font-medium mt-2 text-sm">Enter the unique ID of your leasing agent to access their specific enrollment form.</p>
-          </div>
-          <div className="relative">
-            <UserCheck className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              className="w-full pl-14 pr-6 py-6 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-3xl text-lg font-bold text-center tracking-widest outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-              placeholder="AGT-12345"
-              value={targetAgentId}
-              onChange={(e) => setTargetAgentId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && validateAgent(targetAgentId)}
-            />
-          </div>
-          <button
-            onClick={() => validateAgent(targetAgentId)}
-            disabled={isSearchingAgent || !targetAgentId}
-            className="w-full bg-blue-600 text-white py-6 rounded-3xl font-black uppercase tracking-[0.2em] text-xs shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-          >
-            {isSearchingAgent ? <Loader2 className="animate-spin" /> : <ArrowRight />}
-            {isSearchingAgent ? "Verifying..." : "Access Form"}
-          </button>
-          <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
-            <button onClick={() => setViewMode("history")} className="text-zinc-400 font-bold text-xs hover:text-blue-600 transition-colors uppercase tracking-widest">View My Submitted Dossiers</button>
-          </div>
-        </div>
+      <div className={`flex items-center gap-2 font-semibold ${config.color}`}>
+        <config.icon size={16} />
+        <span>{config.text}</span>
       </div>
     );
-  }
+  };
 
-  // ... The rest of the component remains unchanged ...
-return <div>Applications</div>;
+  return (
+    <div className="p-4 sm:p-6 md:p-8">
+      <div className="flex justify-between items-center mb-6">
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">Applications</h1>
+           {user.role === UserRole.TENANT && <button className="bg-blue-600 text-white font-bold text-xs uppercase tracking-widest px-4 py-3 rounded-lg flex items-center gap-2 active:scale-95 transition-transform">Apply Now</button>}
+      </div>
 
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-6">
+         <div className="flex items-center gap-2 mb-4">
+             <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+              <input 
+                type="text" 
+                placeholder="Search by applicant or property..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+              />
+            </div>
+            {/* Add filter dropdown */}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left">
+            <thead className="sticky top-0 bg-white dark:bg-zinc-900 z-10">
+              <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                <th className="p-4 px-6 text-xs font-black text-zinc-400 uppercase tracking-widest">Applicant</th>
+                <th className="p-4 px-6 text-xs font-black text-zinc-400 uppercase tracking-widest">Property</th>
+                <th className="p-4 px-6 text-xs font-black text-zinc-400 uppercase tracking-widest">Submitted</th>
+                <th className="p-4 px-6 text-xs font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                <th className="p-4 px-6 text-xs font-black text-zinc-400 uppercase tracking-widest text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {applications.map(app => {
+                const applicant = store.users.find(u => u.id === app.userId);
+                const property = store.properties.find(p => p.id === app.propertyId);
+                return (
+                  <tr key={app.id} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <td className="p-4 px-6 font-semibold text-zinc-900 dark:text-white">{applicant?.name || 'Unknown User'}</td>
+                    <td className="p-4 px-6 text-sm text-zinc-500">{property?.name || 'Unknown Property'}</td>
+                    <td className="p-4 px-6 text-sm text-zinc-500">{format(parseISO(app.submittedAt), 'MMM d, yyyy')}</td>
+                    <td className="p-4 px-6"><StatusCell status={app.status} /></td>
+                    <td className="p-4 px-6 text-right space-x-2">
+                        <button className="p-2 text-zinc-400 hover:text-blue-600"><FileText size={16} /></button>
+                        {user.role === UserRole.AGENT && app.status === ApplicationStatus.PENDING && (
+                          <>
+                            <button className="p-2 text-zinc-400 hover:text-green-600"><CheckCircle size={16} /></button>
+                            <button className="p-2 text-zinc-400 hover:text-rose-500"><XCircle size={16} /></button>
+                          </>
+                        )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Applications;

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, Building2, Users, Handshake, CreditCard, Wrench, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Building, Users, FileText, CreditCard, Wrench, FilePlus, Bell, Globe, UserCircle, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SidebarProps {
   user: User;
@@ -10,75 +10,72 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, activeView, onNavigate, onLogout }) => {
-  const getNavLinks = () => {
-    const baseLinks = [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'properties', label: 'Properties', icon: Building2 },
-      { id: 'agreements', label: 'Agreements', icon: Handshake },
-      { id: 'payments', label: 'Payments', icon: CreditCard },
-      { id: 'maintenance', label: 'Maintenance', icon: Wrench },
-      { id: 'applications', label: 'Applications', icon: FileText },
-    ];
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-    if (user.role === UserRole.ADMIN) {
-      return [
-        ...baseLinks,
-        { id: 'tenants', label: 'Tenants', icon: Users },
-        { id: 'agents', label: 'Agents', icon: Users },
-        { id: 'settings', label: 'Settings', icon: Settings },
-      ];
-    }
+  const agentNavItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'properties', icon: Building, label: 'Properties' },
+    { id: 'tenants', icon: Users, label: 'Tenants' },
+    { id: 'agreements', icon: FileText, label: 'Agreements' },
+    { id: 'payments', icon: CreditCard, label: 'Payments' },
+    { id: 'maintenance', icon: Wrench, label: 'Maintenance' },
+    { id: 'applications', icon: FilePlus, label: 'Applications' },
+  ];
 
-    if (user.role === UserRole.AGENT) {
-        return [
-            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'properties', label: 'Properties', icon: Building2 },
-            { id: 'tenants', label: 'Tenants', icon: Users },
-            { id: 'applications', label: 'Applications', icon: FileText },
-        ];
-    }
+  const tenantNavItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'agreements', icon: FileText, label: 'My Lease' },
+    { id: 'payments', icon: CreditCard, label: 'My Payments' },
+    { id: 'maintenance', icon: Wrench, label: 'Maintenance' },
+  ];
 
-    // Tenant
-    return [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'agreements', label: 'My Agreements', icon: Handshake },
-        { id: 'payments', label: 'My Payments', icon: CreditCard },
-        { id: 'maintenance', label: 'Maintenance', icon: Wrench },
-    ];
-  };
+  const navItems = user.role === UserRole.AGENT ? agentNavItems : tenantNavItems;
 
   return (
-    <div className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200/50 dark:border-zinc-800/50 flex flex-col justify-between">
-        <div>
-            <div className="p-6">
-                <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">Spaceya</h1>
-            </div>
-            <nav className="p-4">
-                {getNavLinks().map(({ id, label, icon: Icon }) => (
-                    <button 
-                        key={id} 
-                        onClick={() => onNavigate(id)} 
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all ${activeView === id ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
-                        <Icon size={20} />
-                        {label}
-                    </button>
-                ))}
-            </nav>
-        </div>
+    <div className={`flex flex-col bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-4 h-20 border-b border-zinc-200 dark:border-zinc-800`}>
+        {!isCollapsed && <span className="font-black text-2xl tracking-tighter text-zinc-900 dark:text-white">spaceya</span>}
+        <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
+      </div>
+      
+      <nav className="flex-1 p-4 space-y-2">
+        {navItems.map(item => (
+          <button 
+            key={item.id} 
+            onClick={() => onNavigate(item.id)} 
+            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left font-semibold transition-colors ${isCollapsed ? 'justify-center' : ''} ${
+              activeView === item.id 
+              ? 'bg-blue-600 text-white' 
+              : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white'
+            }`}>
+            <item.icon size={20} />
+            {!isCollapsed && <span>{item.label}</span>}
+          </button>
+        ))}
+      </nav>
 
-        <div className="p-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
-             <div className="flex items-center gap-3 mb-4">
-                <img src={user.avatar || 'https://i.pravatar.cc/150?u=a042581f4e29026704d'} alt={user.name} className="w-10 h-10 rounded-full" />
-                <div>
-                    <p className="font-bold text-zinc-900 dark:text-white text-sm">{user.name}</p>
-                    <p className="text-xs text-zinc-500">{user.role}</p>
-                </div>
-             </div>
-            <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10">
-                <LogOut size={20} />
-                Logout
-            </button>
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
+          <button onClick={() => onNavigate('settings')} className={`w-full flex items-center gap-3 p-3 rounded-lg text-left font-semibold transition-colors ${isCollapsed ? 'justify-center' : ''} ${activeView === 'settings' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+             <UserCircle size={20}/>
+             {!isCollapsed && <span>My Profile</span>}
+          </button>
+          <button onClick={onLogout} className={`w-full flex items-center gap-3 p-3 rounded-lg text-left font-semibold text-zinc-500 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400 transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
+            <LogOut size={20}/>
+            {!isCollapsed && <span>Logout</span>}
+          </button>
+      </div>
+
+       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+           <img src={user.avatar || '/user-placeholder.png'} alt="User Avatar" className={`w-10 h-10 rounded-full object-cover transition-all ${isCollapsed ? 'w-10 h-10' : 'w-12 h-12'}`} />
+           {!isCollapsed && <div>
+                <p className="font-bold text-sm text-zinc-900 dark:text-white">{user.name}</p>
+                <p className="text-xs text-zinc-500 capitalize">{user.role}</p>
+            </div>}
         </div>
+      </div>
     </div>
   );
 };

@@ -47,6 +47,7 @@ export enum NotificationType {
     MAINTENANCE = "maintenance",
     APPLICATION = "application",
     GENERAL = "general",
+    INFO = "INFO",
   }
 
 export interface User {

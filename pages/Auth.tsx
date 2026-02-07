@@ -64,8 +64,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         setError('An account with this email already exists. Please sign in instead.');
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setError('Invalid email or password. Please check your credentials and try again.');
       } else {
-        setError(error.message);
+        setError('An unexpected error occurred. Please try again.');
       }
     }
   };

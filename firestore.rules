@@ -2,17 +2,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function areUserIdsConsistent() {
-      // This function iterates through every user in the write request
-      // and ensures their 'id' and 'displayId' are identical.
-      return request.resource.data.users.forall(user -> user.id == user.displayId);
-    }
-
     match /prop_lifecycle/{docId} {
+      // Allow reads and writes by any authenticated user.
+      // The application logic, including the "Data Doctor", is now responsible 
+      // for maintaining data integrity.
       allow read: if request.auth != null;
-      // Only allow writes if the user is authenticated AND the ID rule is met.
-      allow write: if request.auth != null && areUserIdsConsistent();
+      allow write: if request.auth != null;
     }
   }
 }

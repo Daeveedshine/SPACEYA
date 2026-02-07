@@ -14,7 +14,6 @@ import Applications from "./pages/Applications";
 import Screenings from "./pages/Screenings";
 import AdminApplications from "./pages/AdminApplications";
 import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
 import { Toaster } from "./services/ToastService";
 import {
   Home,
@@ -292,14 +291,7 @@ const App: React.FC = () => {
         );
       case "profile":
         return <Profile user={user} onUserUpdate={setUser} />;
-      case "settings":
-        return (
-          <Settings
-            user={user}
-            onThemeChange={setTheme}
-            onSettingsUpdate={syncVisualSettings}
-          />
-        );
+      
       default:
         return <Dashboard user={user} />;
     }
@@ -369,12 +361,7 @@ const App: React.FC = () => {
       icon: CreditCard,
       roles: [UserRole.AGENT, UserRole.TENANT, UserRole.ADMIN],
     },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: SettingsIcon,
-      roles: [UserRole.AGENT, UserRole.TENANT, UserRole.ADMIN],
-    },
+    
     {
       id: "profile",
       label: "My Profile",

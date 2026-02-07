@@ -11,17 +11,17 @@ export enum PropertyType {
 }
 
 export enum PropertyCategory {
-    RESIDENTIAL = "Residential",
-    COMMERCIAL = "Commercial",
-    INDUSTRIAL = "Industrial",
-    LAND = "Land",
+  RESIDENTIAL = "Residential",
+  COMMERCIAL = "Commercial",
+  INDUSTRIAL = "Industrial",
+  LAND = "Land",
 }
 
 export enum PropertyStatus {
-    AVAILABLE = "Available",
-    OCCUPIED = "Occupied",
-    MAINTENANCE = "Under Maintenance",
-  }
+  AVAILABLE = "Available",
+  OCCUPIED = "Occupied",
+  MAINTENANCE = "Under Maintenance",
+}
 
 export enum TicketStatus {
   OPEN = "Open",
@@ -43,16 +43,16 @@ export enum ApplicationStatus {
 }
 
 export enum NotificationType {
-    PAYMENT = "payment",
-    MAINTENANCE = "maintenance",
-    APPLICATION = "application",
-    GENERAL = "general",
-    INFO = "INFO",
-  }
+  PAYMENT = "payment",
+  MAINTENANCE = "maintenance",
+  APPLICATION = "application",
+  GENERAL = "general",
+  INFO = "info", // Standardized to lowercase
+}
 
 export interface User {
-  id: string; // This is the internal UUID/ULID
-  displayId: string; // This is the new AGT-/TNT- prefixed ID
+  id: string;
+  displayId: string;
   name: string;
   email: string;
   phone: string;
@@ -107,28 +107,75 @@ export interface MaintenanceTicket {
 export interface Notification {
   id: string;
   userId: string;
+  title: string;
   message: string;
+  type: NotificationType;
+  timestamp: string;
   isRead: boolean;
-  createdAt: string;
-  relatedEntityId?: string;
-  type: "payment" | "maintenance" | "application" | "general";
+  linkTo?: string;
 }
 
+// This is a more accurate representation of the TenantApplication
 export interface TenantApplication {
   id: string;
-  propertyId: string;
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-  status: ApplicationStatus;
-  submittedAt: string;
+  userId: string;
+  propertyId: string; // Can be 'PENDING'
   agentId: string;
+  status: ApplicationStatus;
+  submissionDate: string;
+
+  // Personal Info
+  firstName: string;
+  surname: string;
+  middleName?: string;
+  dob: string;
+  maritalStatus: string;
+  gender: string;
+
+  // Contact & Professional
+  occupation: string;
+  familySize: number;
+  phoneNumber: string;
+
+  // Residential History
+  currentHomeAddress: string;
+  reasonForRelocating: string;
+  currentLandlordName: string;
+  currentLandlordPhone: string;
+
+  // Verification
+  verificationType: string;
+  verificationIdNumber: string;
+  verificationUrl?: string; // URL to uploaded ID
+  passportPhotoUrl?: string; // URL to uploaded photo
+
+  // Authorization
+  signature: string;
+  applicationDate: string;
+
+  // Agent-specific
+  agentIdCode: string; // The code the tenant used to start the application
+
+  // AI/System Generated
+  riskScore?: number;
+  aiRecommendation?: string;
+
+  // This will hold all other non-standard fields from a dynamic form
+  customResponses: Record<string, any>;
 }
 
 export type FormFieldValue = string | number | boolean | string[];
 
-export type FieldType = "text" | "textarea" | "select" | "checkbox" | "number" | "date" | "file" | "tel" | "email";
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "select"
+  | "checkbox"
+  | "number"
+  | "date"
+  | "file"
+  | "tel"
+  | "email";
 
 export interface FormField {
   id: string;
@@ -137,33 +184,33 @@ export interface FormField {
   type: FieldType;
   options?: string[]; // for select type
   required: boolean;
+  placeholder?: string;
 }
 
 export interface FormSection {
-    id: string;
-    title: string;
-    icon: string;
-    fields: FormField[];
+  id: string;
+  title: string;
+  icon: string;
+  fields: FormField[];
 }
 
 export interface FormTemplate {
-  agentId: string;
+  agentId: string; // Internal agent UUID
   lastUpdated: string;
   sections: FormSection[];
 }
 
-
 // This is the master state for the entire application.
 export interface AppState {
-    currentUser: User | null;
-    users: User[];
-    properties: Property[];
-    agreements: Agreement[];
-    payments: Payment[];
-    tickets: MaintenanceTicket[];
-    notifications: Notification[];
-    applications: TenantApplication[];
-    formTemplates: FormTemplate[];
-    theme: "light" | "dark";
-    settings: any; // Replace 'any' with a specific settings interface later
-  }
+  currentUser: User | null;
+  users: User[];
+  properties: Property[];
+  agreements: Agreement[];
+  payments: Payment[];
+  tickets: MaintenanceTicket[];
+  notifications: Notification[];
+  applications: TenantApplication[];
+  formTemplates: FormTemplate[];
+  theme: "light" | "dark";
+  settings: any; // Replace 'any' with a specific settings interface later
+}

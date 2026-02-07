@@ -2,28 +2,17 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This rule manages the single document that holds the entire app state.
-    match /prop_lifecycle/{docId} {
-      allow read: if request.auth != null;
 
-      // Write rule: Allow writes only if the user is authenticated
-      // and the 'displayId' of any user in the 'users' array is not being changed.
-      allow write: if request.auth != null && usersDisplayIdNotChanged();
+    function areUserIdsConsistent() {
+      // This function iterates through every user in the write request
+      // and ensures their 'id' and 'displayId' are identical.
+      return request.resource.data.users.forall(user -> user.id == user.displayId);
     }
 
-    // Helper function to check if the displayId of any user is being modified.
-    function usersDisplayIdNotChanged() {
-      // Get the list of users before the change and after the change.
-      let before = resource.data.users;
-      let after = request.resource.data.users;
-
-      // Find a user whose displayId has changed. The `filter()` method returns a list
-      // of all users for whom the condition is true. If this list is empty, it means
-      // no user's displayId has been changed.
-      let changedUsers = before.filter((user, i) => user.id == after[i].id && user.displayId != after[i].displayId);
-
-      // The write is allowed only if the list of changed users is empty.
-      return changedUsers.size() == 0;
+    match /prop_lifecycle/{docId} {
+      allow read: if request.auth != null;
+      // Only allow writes if the user is authenticated AND the ID rule is met.
+      allow write: if request.auth != null && areUserIdsConsistent();
     }
   }
 }

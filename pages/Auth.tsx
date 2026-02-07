@@ -62,7 +62,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
       await runDataDoctor(); // Run the data integrity check
       onAuthSuccess();
     } catch (error: any) {
-      setError(error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists. Please sign in instead.');
+      } else {
+        setError(error.message);
+      }
     }
   };
 

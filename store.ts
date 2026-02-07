@@ -66,33 +66,6 @@ const initialData: AppState = {
   settings: initialSettings,
 };
 
-// UID Generation Logic
-const generateSecureAlphanumeric = (length: number): string => {
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    const randomValues = new Uint32Array(length);
-    // Use the browser's built-in crypto API
-    window.crypto.getRandomValues(randomValues);
-    for (let i = 0; i < length; i++) {
-        result += charset[randomValues[i] % charset.length];
-    }
-    return result;
-};
-
-export const generateDisplayId = (role: UserRole, existingIds: string[]): string => {
-    const prefix = role === UserRole.AGENT ? 'AGT' : 'TNT';
-    let newId = '';
-    let isUnique = false;
-
-    while (!isUnique) {
-        newId = `${prefix}-${generateSecureAlphanumeric(6)}`;
-        if (!existingIds.includes(newId)) {
-            isUnique = true;
-        }
-    }
-    return newId;
-};
-
 // Retrieve data synchronously from LocalStorage for instant UI render
 export const getStore = (): AppState => {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -140,16 +113,14 @@ export const saveUser = async (user: Omit<User, 'displayId'> & { displayId?: str
   const store = getStore();
   const userIndex = store.users.findIndex(u => u.id === user.id);
 
+  const userWithDisplayId = { ...user, displayId: user.id } as User;
+
   if (userIndex > -1) {
-    // User exists, update it, ensuring displayId is not changed
-    const existingUser = store.users[userIndex];
-    store.users[userIndex] = { ...user, displayId: existingUser.displayId };
+    // User exists, update it
+    store.users[userIndex] = userWithDisplayId;
   } else {
-    // User does not exist, generate a new displayId and add it
-    const existingIds = store.users.map(u => u.displayId);
-    const newDisplayId = generateDisplayId(user.role, existingIds);
-    const newUserWithId = { ...user, displayId: newDisplayId } as User;
-    store.users.unshift(newUserWithId);
+    // User does not exist, add it
+    store.users.unshift(userWithDisplayId);
   }
 
   // Now, save the entire updated state using the main save function

@@ -19,23 +19,34 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const handleGoogleSignIn = async () => {
     const auth = getAuth();
     const provider = new GoogleAuthProvider();
+    setError(null);
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+      const firebaseUser = result.user;
       const store = getStore();
-      const existingUser = store.users.find((u) => u.id === user.uid);
-      if (!existingUser) {
+      let userInDb = store.users.find((u) => u.id === firebaseUser.uid);
+
+      if (!userInDb) {
         const newUser: Omit<User, 'displayId'> = {
-          id: user.uid,
-          name: user.displayName || "Unnamed User",
-          email: user.email || "",
-          role: UserRole.TENANT, // Default role
-          avatar: user.photoURL || "",
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || "Unnamed User",
+          email: firebaseUser.email || "",
+          role: UserRole.TENANT,
+          avatar: firebaseUser.photoURL || "",
         };
         await saveUser(newUser);
+        const newStore = getStore();
+        userInDb = newStore.users.find((u) => u.id === firebaseUser.uid);
       }
-      await runDataDoctor(); // Run the data integrity check
-      onAuthSuccess();
+
+      if (userInDb) {
+        const newState = { ...getStore(), currentUser: userInDb };
+        saveStore(newState);
+        onAuthSuccess();
+      } else {
+        throw new Error("Failed to create or find user data.");
+      }
+
     } catch (error: any) {
       setError(error.message);
     }
@@ -44,64 +55,53 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const auth = getAuth();
+    setError(null);
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        const store = getStore();
+        const userInDb = store.users.find(u => u.id === firebaseUser.uid);
+
+        if (userInDb) {
+          const newState = { ...store, currentUser: userInDb };
+          saveStore(newState);
+          onAuthSuccess();
+        } else {
+          setError("Your account data was not found. Please contact support.");
+        }
       } else {
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        const user = result.user;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
         const newUser: Omit<User, 'displayId'> = {
-          id: user.uid,
+          id: firebaseUser.uid,
           name: fullName,
           email: email,
           role: role,
           avatar: "",
         };
         await saveUser(newUser);
+        
+        const store = getStore();
+        const userInDb = store.users.find(u => u.id === firebaseUser.uid);
+        if (userInDb) {
+          const newState = { ...store, currentUser: userInDb };
+          saveStore(newState);
+          onAuthSuccess();
+        } else {
+           throw new Error("Failed to create user.");
+        }
       }
-      await runDataDoctor(); // Run the data integrity check
-      onAuthSuccess();
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         setError('An account with this email already exists. Please sign in instead.');
       } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setError('Invalid email or password. Please check your credentials and try again.');
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError('An unexpected error occurred. Please try again later.');
       }
     }
   };
-
-  // --- DATA DOCTOR SCRIPT ---
-  const runDataDoctor = async () => {
-    console.log("DATA DOCTOR: Starting data integrity check...");
-    const store = getStore();
-    let wasModified = false;
-
-    const existingIds = store.users.map(u => u.displayId).filter(Boolean);
-
-    const repairedUsers = store.users.map(user => {
-      // Check if displayId is missing, empty, or uses the old Firebase ID format
-      if (!user.displayId || user.displayId === user.id) {
-        console.log(`DATA DOCTOR: Repairing user ${user.name} (ID: ${user.id})`);
-        const newDisplayId = generateDisplayId(user.role, existingIds);
-        existingIds.push(newDisplayId);
-        wasModified = true;
-        return { ...user, displayId: newDisplayId };
-      }
-      return user;
-    });
-
-    if (wasModified) {
-      console.log("DATA DOCTOR: Found and repaired inconsistent data. Saving to database...");
-      const newState = { ...store, users: repairedUsers };
-      await saveStore(newState);
-      console.log("DATA DOCTOR: Database updated successfully.");
-    } else {
-      console.log("DATA DOCTOR: No data inconsistencies found. Your database is clean.");
-    }
-  };
-  // --- END OF DATA DOCTOR SCRIPT ---
 
   return (
     <div className="flex items-center justify-center h-screen bg-offwhite dark:bg-black font-sans">
@@ -115,18 +115,18 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           {!isLogin && (
             <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-                <input placeholder="Full Name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
+                <input placeholder="Full Name" type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
             </div>
           )}
 
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-            <input placeholder="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
+            <input placeholder="Email Address" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
           </div>
 
           <div className="relative">
             <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-            <input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
+            <input placeholder="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-offwhite dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
           </div>
 
           {!isLogin && (
@@ -143,7 +143,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             {isLogin ? "Sign In" : "Create Account"}
           </button>
 
-          {error && <p className="text-rose-500 text-sm font-semibold text-center">{error}</p>}
+          {error && <p className="text-rose-500 text-sm font-semibold text-center py-2">{error}</p>}
         </form>
 
         <div className="relative flex items-center justify-center">
@@ -158,7 +158,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
         <p className="text-center text-sm text-zinc-500">
           {isLogin ? "Don't have an account?" : "Already have an account?"}
-          <button onClick={() => setIsLogin(!isLogin)} className="font-bold text-blue-600 ml-1">
+          <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="font-bold text-blue-600 ml-1">
             {isLogin ? "Sign Up" : "Sign In"}
           </button>
         </p>
